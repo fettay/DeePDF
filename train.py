@@ -99,7 +99,7 @@ def run(model, training_csv, data_path, training_id=None, gpu=None):
     step_cost_time = 0
     max_step = (int(df_train.shape[0] / BATCH_SIZE) + 1) * NB_EPOCHS   # Last number is the number of epochs
         
-    while total_step < 3:
+    while total_step < max_step:
 
         ### TRAINING ### 
         for step,batch_data in enumerate(dataloader):
