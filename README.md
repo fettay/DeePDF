@@ -36,7 +36,8 @@ To run a training, run the file *train.py*
 
 ###### Usage:
 
-    usage: train.py [-h] [--name NAME] [--gpu GPU] model files_csv data_path
+    usage: train.py [-h] [--name NAME] [--gpu GPU] [--resample]
+                    model files_csv data_path
 
     positional arguments:
     model        Model to use, should be either 'ModelA', 'ModelB', or 'ModelC'
@@ -50,3 +51,4 @@ To run a training, run the file *train.py*
     --name NAME  Name of the training (for the log file, the model object and
                 the ROC picture)
     --gpu GPU    Which GPU to use, default will be cuda:0
+    --resample   Whether to resample the train set

@@ -34,7 +34,7 @@ MODEL_DIC = {'modela': ModelA, 'modelb': ModelB, 'modelc': ModelC}
 
 
     
-def run(model, training_csv, data_path, training_id=None, gpu=None):
+def run(model, training_csv, data_path, training_id=None, gpu=None, resample=False):
     
     if training_id is None:
         training_id = str(uuid4())
@@ -60,6 +60,9 @@ def run(model, training_csv, data_path, training_id=None, gpu=None):
     device = torch.device(gpu if torch.cuda.is_available() else "cpu")
     logger.debug('Used device %s' % device)
     df_train, df_valid, df_test = get_datasets(training_csv)
+    
+    if resample:
+        df_train = df_train.sample(frac=1, replace=True)
     
     
     #df_train = df_train.iloc[:df_train.shape[0] // 2]
@@ -154,7 +157,7 @@ def run(model, training_csv, data_path, training_id=None, gpu=None):
     test_pred, test_labels = predict(model, testloader, device, verbose=False)
     fpr, tpr, _ = roc_curve(test_labels, test_pred)
     plt.plot(fpr, tpr, label="ROC on training")
-    plt.save(training_id + '_roc.png')
+    plt.savefig(training_id + '_roc.png')
     logger.info("The ROC curve on test has been stored in %s_roc.png. Training is done" % training_id)
 
     
@@ -166,5 +169,6 @@ if __name__ == '__main__':
     parser.add_argument('data_path', type=str, default='data/', help="Directory in which the files are stored, the name of the files must be to the hash in the csv file. ")
     parser.add_argument('--name', type=str, default=None, help="Name of the training (for the log file, the model object and the ROC picture)")
     parser.add_argument('--gpu', type=str, default=None, help="Which GPU to use, default will be cuda:0")
+    parser.add_argument('--resample', action='store_true', help="Whether to resample the train set")
     args = parser.parse_args()
-    run(args.model.lower(), args.files_csv, args.data_path, args.name, args.gpu)        
+    run(args.model.lower(), args.files_csv, args.data_path, args.name, args.gpu, args.resample)        
