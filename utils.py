@@ -98,3 +98,28 @@ def predict(model, dataloader, device, verbose=True):
         val_pred.extend(pred.cpu().data)
         val_label.extend(label)
     return np.array(val_pred), np.array(val_label)
+
+
+def predict_bayes(model, dataloader, device, verbose=True):
+    val_pred = []
+    val_label = []
+    iterarator = tqdm if verbose else regular_iterator
+    for _,val_batch_data in iterarator(enumerate(dataloader), total=len(dataloader)):
+        cur_batch_size = val_batch_data[0].size(0)
+
+        exe_input = val_batch_data[0].to(device)
+        exe_input = Variable(exe_input.long(), requires_grad=False)
+
+        label = val_batch_data[1].to(device)
+        label = Variable(label.float(), requires_grad=False)
+
+        pred, _ = model(exe_input)
+        val_pred.extend(pred.cpu().data)
+        val_label.extend(label)
+    return np.array(val_pred), np.array(val_label)
+
+
+def find_detection_at(roc, fpr_target):
+    fpr, tpr, _ = roc
+    closest_idx = np.argmin(np.abs(fpr-fpr_target))
+    return fpr[closest_idx], tpr[closest_idx]

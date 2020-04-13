@@ -123,3 +123,6 @@ data/
 logs/
 *.out
 trainings/
+*.ipynb
+*.png
+*.pkl

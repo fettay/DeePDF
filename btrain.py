@@ -11,11 +11,11 @@ from torch.autograd import Variable
 import time
 import logging
 from uuid import uuid4
-from models import INPUT_LENGTH, INPUT_HEIGHT, ModelA, ModelB, ModelC
+from bmodels import INPUT_LENGTH, INPUT_HEIGHT, BModelA
 import argparse
 import pickle
 import hashlib
-from utils import torch_summarize, PDFDataSet, predict, find_detection_at
+from utils import torch_summarize, PDFDataSet, predict_bayes, find_detection_at
 from sklearn.metrics import roc_curve
 import matplotlib
 matplotlib.use('pdf')
@@ -25,15 +25,21 @@ import os
 
 VALID_RATIO = 0.2
 BATCH_SIZE = 64
-NB_EPOCHS = 10
+NB_EPOCHS = 25
 
 display_step = 15
-test_step = 150
-MODEL_DIC = {'modela': ModelA, 'modelb': ModelB, 'modelc': ModelC}
+test_step = 450
+MODEL_DIC = {'modela': BModelA}
+
+
+def elbo(out, y, kl, beta):
+    loss = F.binary_cross_entropy_with_logits(out, y)
+    return loss + beta * kl
+
 
 
     
-def run(model, training_csv, data_path, training_id=None, gpu=None, resample=False, cont=False):
+def run(model, training_csv, data_path, training_id=None, gpu=None, resample=False):
     
     model = model.lower()
     
@@ -54,7 +60,6 @@ def run(model, training_csv, data_path, training_id=None, gpu=None, resample=Fal
 
     logging.basicConfig(level=logging.DEBUG, filename=logfile)
     logger.debug('Training id: %s' % training_id)
-    logger.debug('Nb epochs: %d' % NB_EPOCHS)
     
     # Preprocessing
     if gpu is None:
@@ -65,13 +70,12 @@ def run(model, training_csv, data_path, training_id=None, gpu=None, resample=Fal
     
     if resample:
         df_train = df_train.sample(frac=1, replace=True)
+        logger.debug('Resample is on')
+    else:
+        logger.debug('Resample is off')
 
-#     learning_rate = 1e-2 if model=='modelc' else 1e-3
-    learning_rate = 1e-3
-    
-    
-    #df_train = df_train.iloc[:df_train.shape[0] // 2]
-    
+    learning_rate = 5e-4
+        
     
     logger.debug('Train size %d, Valid size %d,  Test size %d' % (df_train.shape[0],
                                                                df_valid.shape[0], df_test.shape[0]))
@@ -80,21 +84,14 @@ def run(model, training_csv, data_path, training_id=None, gpu=None, resample=Fal
     
     dataloader = DataLoader(PDFDataSet(df_train, data_path), batch_size=BATCH_SIZE, shuffle=False)
     validloader = DataLoader(PDFDataSet(df_valid, data_path), batch_size=BATCH_SIZE, shuffle=False)
-    
-    if not cont:
-        model_cls = MODEL_DIC[model]
-        model = model_cls()
-    else:
-        model = torch.load(model_file , map_location={'cuda:%d' % i: gpu for i in range(8)})
-        model.eval()
+    model_cls = MODEL_DIC[model]
 
-    bce_loss = nn.BCELoss()
+    model = model_cls()
     adam_optim = optim.Adam([{'params':model.parameters()}],lr=learning_rate)
     
     logger.debug(torch_summarize(model))
 
     model = model.to(device)
-    bce_loss = bce_loss.to(device)
 
 
     ### TRAINING ###
@@ -126,8 +123,10 @@ def run(model, training_csv, data_path, training_id=None, gpu=None, resample=Fal
             inp = Variable(inp.long(),requires_grad=False)
             label = batch_data[1].to(device)
             label = Variable(label.float(),requires_grad=False)
-            pred = model(inp)
-            loss = bce_loss(pred,label)
+            pred, kl = model(inp)
+        
+            beta = 1 / df_train.shape[0]
+            loss = elbo(pred, label, kl, beta)
             loss.backward()
             adam_optim.step()
             history['tr_loss'].append(loss.cpu().data.item())
@@ -145,7 +144,7 @@ def run(model, training_csv, data_path, training_id=None, gpu=None, resample=Fal
 
             if total_step % test_step == 0:
 
-                pred, labels = predict(model, validloader, device, verbose=False)
+                pred, labels = predict_bayes(model, validloader, device, verbose=False)
                 roc = roc_curve(labels, pred)
                 _, detection_1_percent = find_detection_at(roc, .01)
 
@@ -180,6 +179,5 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, default=None, help="Name of the training (for the log file, the model object and the ROC picture)")
     parser.add_argument('--gpu', type=str, default=None, help="Which GPU to use, default will be cuda:0")
     parser.add_argument('--resample', action='store_true', help="Whether to resample the train set")
-    parser.add_argument('--cont', action='store_true', help="Whether to continue old training")
     args = parser.parse_args()
-    run(args.model.lower(), args.files_csv, args.data_path, args.name, args.gpu, args.resample, args.cont)        
+    run(args.model.lower(), args.files_csv, args.data_path, args.name, args.gpu, args.resample)        
