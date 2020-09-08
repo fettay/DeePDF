@@ -25,7 +25,7 @@ import os
 
 VALID_RATIO = 0.2
 BATCH_SIZE = 64
-NB_EPOCHS = 25
+NB_EPOCHS = 50
 
 display_step = 15
 test_step = 450
@@ -39,7 +39,7 @@ def elbo(out, y, kl, beta):
 
 
     
-def run(model, training_csv, data_path, training_id=None, gpu=None, resample=False):
+def run(model, training_csv, data_path, training_id=None, gpu=None, resample=False, cont=False):
     
     model = model.lower()
     
@@ -74,7 +74,7 @@ def run(model, training_csv, data_path, training_id=None, gpu=None, resample=Fal
     else:
         logger.debug('Resample is off')
 
-    learning_rate = 5e-4
+    learning_rate = 5e-3
         
     
     logger.debug('Train size %d, Valid size %d,  Test size %d' % (df_train.shape[0],
@@ -84,9 +84,14 @@ def run(model, training_csv, data_path, training_id=None, gpu=None, resample=Fal
     
     dataloader = DataLoader(PDFDataSet(df_train, data_path), batch_size=BATCH_SIZE, shuffle=False)
     validloader = DataLoader(PDFDataSet(df_valid, data_path), batch_size=BATCH_SIZE, shuffle=False)
-    model_cls = MODEL_DIC[model]
+    
+    if not cont:
+        model_cls = MODEL_DIC[model]
+        model = model_cls()
+    else:
+        model = torch.load(model_file , map_location={'cuda:%d' % i: gpu for i in range(8)})
+        model.eval()
 
-    model = model_cls()
     adam_optim = optim.Adam([{'params':model.parameters()}],lr=learning_rate)
     
     logger.debug(torch_summarize(model))
@@ -130,7 +135,8 @@ def run(model, training_csv, data_path, training_id=None, gpu=None, resample=Fal
             loss.backward()
             adam_optim.step()
             history['tr_loss'].append(loss.cpu().data.item())
-            history['tr_acc'].extend(list(label.cpu().data.numpy().astype(int) == (pred.cpu().data.numpy()+0.5).astype(int)))
+            predicted_bool = (torch.sigmoid(pred) > .5)[0, :].float().cpu().data.numpy()
+            history['tr_acc'].extend(list(label.cpu().data.numpy().astype(int) == predicted_bool.astype(int)))
 
             step_cost_time = time.time()-start
 
@@ -179,5 +185,6 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, default=None, help="Name of the training (for the log file, the model object and the ROC picture)")
     parser.add_argument('--gpu', type=str, default=None, help="Which GPU to use, default will be cuda:0")
     parser.add_argument('--resample', action='store_true', help="Whether to resample the train set")
+    parser.add_argument('--cont', action='store_true', help="Whether to continue old training")
     args = parser.parse_args()
-    run(args.model.lower(), args.files_csv, args.data_path, args.name, args.gpu, args.resample)        
+    run(args.model.lower(), args.files_csv, args.data_path, args.name, args.gpu, args.resample, args.cont)        
