@@ -36,4 +36,17 @@ def get_datasets(files_df):
         df_test = pd.concat((df_mal_test, df_ben_test), sort=False).sort_values('hash')
         df_valid = pd.concat((df_mal_valid, df_ben_valid), sort=False).sort_values('hash')
         return df_train, df_valid, df_test
+
+
+def get_datasets_contagio(files_df):
+        df = pd.read_csv(files_df)
+        # df_ben = df[df['verdict'] == 0].sample(frac=1, random_state=42)
+        # df_mal = df[df['verdict'] == 1].sample(frac=1, random_state=42)
+        df_ben = df[df['verdict'] == 0].sample(frac=1)
+        df_mal = df[df['verdict'] == 1].sample(frac=1)
+        df_ben_train, df_ben_test = split_train_test(df_ben, 0.33)
+        df_mal_train, df_mal_test = split_train_test(df_mal, .46)
+        df_train = pd.concat((df_mal_train, df_ben_train), sort=False).sort_values('hash')
+        df_test = pd.concat((df_mal_test, df_ben_test), sort=False).sort_values('hash')
+        return df_train, pd.DataFrame(), df_test
         

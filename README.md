@@ -36,7 +36,8 @@ To run a training, run the file *train.py*
 
 ###### Usage:
 
-    usage: train.py [-h] [--name NAME] [--gpu GPU] [--resample]
+    usage: train.py [-h] [--name NAME] [--gpu GPU] [--resample] [--cont]
+                    [--contagio]
                     model files_csv data_path
 
     positional arguments:
@@ -52,3 +53,5 @@ To run a training, run the file *train.py*
                 the ROC picture)
     --gpu GPU    Which GPU to use, default will be cuda:0
     --resample   Whether to resample the train set
+    --cont       Whether to continue old training
+    --contagio   Split train test for contagio dataset
