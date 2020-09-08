@@ -18,15 +18,19 @@ In order to train a model, you need to have:
 - The pdfs files you want to train on in a local folder 
 - A csv containing about information about the files. The format should be the same as samples.csv
 
-*To require access to the malicious files used in the paper, please contact one of the authors.*
+### Downloading experiment files 
+In order to reproduce our experiments you can:
 
-### Run a training ###
+- Download the list of files given in training_files.csv from VirusTotal
+- Download the contagio dump for PDF files and use training_contagio.csv
+
+### Run a training 
 
 To run a training, run the file *train.py*
 
 ###### Example:
 
-    python3 train.py ModelB samples.csv data/pdfs/ --name training1 --gpu cuda:3
+    python3 train.py ModelB training_files.csv data/pdfs/ --name training1 --gpu cuda:3
 
 ###### It saves:
 
